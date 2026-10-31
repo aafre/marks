@@ -1,6 +1,6 @@
 use std::env;
 use std::error::Error;
-use std::fs::OpenOptions;
+use std::fs::{self, OpenOptions};
 use std::io::Write;
 
 const FILE: &str = "marks.txt";
@@ -21,9 +21,17 @@ fn main() -> Result<(), Box<dyn Error>> {
             writeln!(file, "{url}")?;
             println!("Saved {url}");
         }
-        "list" => println!("listing bookmarks"),
+        "list" => list()?,
         _ => println!("{USAGE}"),
     }
 
+    Ok(())
+}
+
+fn list() -> Result<(), Box<dyn Error>> {
+    let contents = fs::read_to_string(FILE)?;
+    for (i, line) in contents.lines().enumerate() {
+        println!("{}. {line}", i + 1);
+    }
     Ok(())
 }
