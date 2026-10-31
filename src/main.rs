@@ -17,14 +17,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     match args[1].as_str() {
         "add" => {
             let url = args[2].clone();
-            let mut file = OpenOptions::new().append(true).create(true).open(FILE)?;
-            writeln!(file, "{url}")?;
+            add(&url)?;
             println!("Saved {url}");
         }
         "list" => list()?,
         _ => println!("{USAGE}"),
     }
 
+    Ok(())
+}
+
+fn add(url: &str) -> Result<(), Box<dyn Error>> {
+    let mut file = OpenOptions::new().append(true).create(true).open(FILE)?;
+    writeln!(file, "{url}")?;
     Ok(())
 }
 
