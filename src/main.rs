@@ -1,4 +1,4 @@
-use std::env;
+use clap::{Parser, Subcommand};
 use std::fmt;
 use std::fs;
 use std::io;
@@ -6,7 +6,6 @@ use std::path::Path;
 use std::process;
 
 const FILE: &str = "marks.txt";
-const USAGE: &str = "usage: marks add <url> [--title <title>] [--tags <a,b>] | marks list | marks version";
 
 struct Bookmark {
     url: String,
@@ -14,33 +13,38 @@ struct Bookmark {
     tags: Vec<String>,
 }
 
+/// A bookmark manager for the terminal
+#[derive(Parser)]
+#[command(version)]
+struct Cli {
+    #[command(subcommand)]
+    command: Command,
+}
+
+#[derive(Subcommand)]
 enum Command {
+    /// Save a link
     Add {
         url: String,
-        title: String,
+        /// A title to show in the list
+        #[arg(long)]
+        title: Option<String>,
+        /// Tags, separated by commas
+        #[arg(long, value_delimiter = ',')]
         tags: Vec<String>,
     },
+    /// Show every saved link
     List,
-    Version,
-    Help,
 }
 
 enum MarksError {
     Io(io::Error),
-    UnknownCommand(String),
-    MissingUrl,
-    MissingValue(String),
-    UnknownFlag(String),
 }
 
 impl fmt::Display for MarksError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             MarksError::Io(err) => write!(f, "couldn't use {FILE}: {err}"),
-            MarksError::UnknownCommand(name) => write!(f, "unknown command '{name}'"),
-            MarksError::MissingUrl => write!(f, "add needs a URL"),
-            MarksError::MissingValue(flag) => write!(f, "{flag} needs a value"),
-            MarksError::UnknownFlag(flag) => write!(f, "unknown flag '{flag}'"),
         }
     }
 }
@@ -79,64 +83,22 @@ impl Bookmark {
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    if let Err(err) = run(&args) {
+    let cli = Cli::parse();
+    if let Err(err) = run(cli.command) {
         eprintln!("error: {err}");
-        eprintln!("{USAGE}");
         process::exit(1);
     }
 }
 
-fn run(args: &[String]) -> Result<(), MarksError> {
-    match parse(args)? {
-        Command::Add { url, title, tags } => add(Bookmark { url, title, tags })?,
+fn run(command: Command) -> Result<(), MarksError> {
+    match command {
+        Command::Add { url, title, tags } => {
+            let title = title.unwrap_or_default();
+            add(Bookmark { url, title, tags })?
+        }
         Command::List => list()?,
-        Command::Version => println!("marks {}", env!("CARGO_PKG_VERSION")),
-        Command::Help => println!("{USAGE}"),
     }
     Ok(())
-}
-
-fn parse(args: &[String]) -> Result<Command, MarksError> {
-    let name = match args.get(1) {
-        Some(name) => name,
-        None => return Ok(Command::Help),
-    };
-    match name.as_str() {
-        "add" => parse_add(&args[2..]),
-        "list" => Ok(Command::List),
-        "version" => Ok(Command::Version),
-        "help" => Ok(Command::Help),
-        other => Err(MarksError::UnknownCommand(other.to_string())),
-    }
-}
-
-fn parse_add(args: &[String]) -> Result<Command, MarksError> {
-    let url = match args.first() {
-        Some(url) => url.clone(),
-        None => return Err(MarksError::MissingUrl),
-    };
-    let mut title = String::new();
-    let mut tags = Vec::new();
-    let mut i = 1;
-    while i < args.len() {
-        let flag = &args[i];
-        let value = match args.get(i + 1) {
-            Some(value) => value,
-            None => return Err(MarksError::MissingValue(flag.clone())),
-        };
-        match flag.as_str() {
-            "--title" => title = value.clone(),
-            "--tags" => {
-                for tag in value.split(',') {
-                    tags.push(tag.to_string());
-                }
-            }
-            _ => return Err(MarksError::UnknownFlag(flag.clone())),
-        }
-        i += 2;
-    }
-    Ok(Command::Add { url, title, tags })
 }
 
 fn add(bookmark: Bookmark) -> Result<(), MarksError> {
