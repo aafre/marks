@@ -98,8 +98,8 @@ fn add_tag<S: Store>(store: &mut S, number: usize, tag: String) -> Result<(), Ma
     store.save(&bookmarks)
 }
 
-fn search(bookmarks: &[Bookmark], query: &str) -> Vec<Bookmark> {
-    bookmarks.iter().filter(|bookmark| bookmark.matches(query)).cloned().collect()
+fn search<'a>(bookmarks: &'a [Bookmark], query: &str) -> Vec<&'a Bookmark> {
+    bookmarks.iter().filter(|bookmark| bookmark.matches(query)).collect()
 }
 
 fn list<S: Store>(store: &S) -> Result<(), MarksError> {
