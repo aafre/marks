@@ -12,6 +12,16 @@ struct Bookmark {
     tags: Vec<String>,
 }
 
+enum Command {
+    Add {
+        url: String,
+        title: String,
+        tags: Vec<String>,
+    },
+    List,
+    Help,
+}
+
 impl Bookmark {
     fn from_line(line: &str) -> Option<Bookmark> {
         if line.trim().is_empty() {
