@@ -1,6 +1,7 @@
 use std::fmt;
 use std::io;
 
+#[derive(Debug)]
 pub enum MarksError {
     Io(io::Error),
     Json(serde_json::Error),
