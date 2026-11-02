@@ -1,18 +1,13 @@
+mod bookmark;
+mod error;
+mod store;
+
 use clap::{Parser, Subcommand};
-use std::fmt;
-use std::fs;
-use std::io;
-use std::path::Path;
 use std::process;
 
-const FILE: &str = "marks.txt";
-
-#[derive(Clone)]
-struct Bookmark {
-    url: String,
-    title: String,
-    tags: Vec<String>,
-}
+use bookmark::Bookmark;
+use error::MarksError;
+use store::{load, save};
 
 /// A bookmark manager for the terminal
 #[derive(Parser)]
@@ -40,60 +35,6 @@ enum Command {
     Search { query: String },
     /// Add a tag to a saved link
     Tag { number: usize, tag: String },
-}
-
-enum MarksError {
-    Io(io::Error),
-    NoSuchBookmark(usize),
-}
-
-impl fmt::Display for MarksError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            MarksError::Io(err) => write!(f, "couldn't use {FILE}: {err}"),
-            MarksError::NoSuchBookmark(number) => write!(f, "there's no bookmark #{number}"),
-        }
-    }
-}
-
-impl From<io::Error> for MarksError {
-    fn from(err: io::Error) -> MarksError {
-        MarksError::Io(err)
-    }
-}
-
-impl Bookmark {
-    fn from_line(line: &str) -> Option<Bookmark> {
-        if line.trim().is_empty() {
-            return None;
-        }
-        let mut fields = line.split('\t');
-        let url = fields.next().unwrap_or("").to_string();
-        let title = fields.next().unwrap_or("").to_string();
-        let mut tags = Vec::new();
-        for tag in fields.next().unwrap_or("").split(',') {
-            if !tag.is_empty() {
-                tags.push(tag.to_string());
-            }
-        }
-        Some(Bookmark { url, title, tags })
-    }
-
-    fn to_line(&self) -> String {
-        format!("{}\t{}\t{}", self.url, self.title, self.tags.join(","))
-    }
-
-    fn matches(&self, query: &str) -> bool {
-        let query = query.to_lowercase();
-        self.title.to_lowercase().contains(&query)
-            || self.url.contains(&query)
-            || self.tags.iter().any(|tag| *tag == query)
-    }
-
-    fn row(&self) -> String {
-        let title = if self.title.is_empty() { "(untitled)" } else { &self.title };
-        format!("{:<24} {:<36} {}", title, self.url, self.tags.join(", "))
-    }
 }
 
 fn main() {
@@ -136,30 +77,6 @@ fn add(bookmark: Bookmark) -> Result<(), MarksError> {
     println!("Saved {}", bookmark.url);
     bookmarks.push(bookmark);
     save(&bookmarks)
-}
-
-fn save(bookmarks: &Vec<Bookmark>) -> Result<(), MarksError> {
-    let mut contents = String::new();
-    for bookmark in bookmarks {
-        contents.push_str(&bookmark.to_line());
-        contents.push('\n');
-    }
-    fs::write(FILE, contents)?;
-    Ok(())
-}
-
-fn load() -> Result<Vec<Bookmark>, MarksError> {
-    let mut bookmarks = Vec::new();
-    if !Path::new(FILE).exists() {
-        return Ok(bookmarks);
-    }
-    let contents = fs::read_to_string(FILE)?;
-    for line in contents.lines() {
-        if let Some(bookmark) = Bookmark::from_line(line) {
-            bookmarks.push(bookmark);
-        }
-    }
-    Ok(bookmarks)
 }
 
 fn add_tag(number: usize, tag: String) -> Result<(), MarksError> {
