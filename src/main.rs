@@ -7,6 +7,7 @@ use std::process;
 
 const FILE: &str = "marks.txt";
 
+#[derive(Clone)]
 struct Bookmark {
     url: String,
     title: String,
@@ -35,6 +36,8 @@ enum Command {
     },
     /// Show every saved link
     List,
+    /// Find links by title, URL or tag
+    Search { query: String },
 }
 
 enum MarksError {
@@ -76,6 +79,13 @@ impl Bookmark {
         format!("{}\t{}\t{}", self.url, self.title, self.tags.join(","))
     }
 
+    fn matches(&self, query: &str) -> bool {
+        let query = query.to_lowercase();
+        self.title.to_lowercase().contains(&query)
+            || self.url.contains(&query)
+            || self.tags.iter().any(|tag| *tag == query)
+    }
+
     fn row(&self) -> String {
         let title = if self.title.is_empty() { "(untitled)" } else { &self.title };
         format!("{:<24} {:<36} {}", title, self.url, self.tags.join(", "))
@@ -97,6 +107,12 @@ fn run(command: Command) -> Result<(), MarksError> {
             add(Bookmark { url, title, tags })?
         }
         Command::List => list()?,
+        Command::Search { query } => {
+            let bookmarks = load()?;
+            for bookmark in search(&bookmarks, &query) {
+                println!("{}", bookmark.row());
+            }
+        }
     }
     Ok(())
 }
@@ -139,6 +155,10 @@ fn load() -> Result<Vec<Bookmark>, MarksError> {
         }
     }
     Ok(bookmarks)
+}
+
+fn search(bookmarks: &[Bookmark], query: &str) -> Vec<Bookmark> {
+    bookmarks.iter().filter(|bookmark| bookmark.matches(query)).cloned().collect()
 }
 
 fn list() -> Result<(), MarksError> {
