@@ -2,6 +2,7 @@ use std::env;
 use std::error::Error;
 use std::fs::{self, OpenOptions};
 use std::io::Write;
+use std::path::Path;
 
 const FILE: &str = "marks.txt";
 const USAGE: &str = "usage: marks add <url> [--title <title>] [--tags <a,b>] | marks list";
@@ -31,6 +32,11 @@ impl Bookmark {
 
     fn to_line(&self) -> String {
         format!("{}\t{}\t{}", self.url, self.title, self.tags.join(","))
+    }
+
+    fn row(&self) -> String {
+        let title = if self.title.is_empty() { "(untitled)" } else { &self.title };
+        format!("{:<24} {:<36} {}", title, self.url, self.tags.join(", "))
     }
 }
 
@@ -80,12 +86,25 @@ fn add(bookmark: &Bookmark) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn list() -> Result<(), Box<dyn Error>> {
+fn load() -> Result<Vec<Bookmark>, Box<dyn Error>> {
+    let mut bookmarks = Vec::new();
+    if !Path::new(FILE).exists() {
+        return Ok(bookmarks);
+    }
     let contents = fs::read_to_string(FILE)?;
-    for (i, line) in contents.lines().enumerate() {
+    for line in contents.lines() {
         if let Some(bookmark) = Bookmark::from_line(line) {
-            println!("{}. {} {} {:?}", i + 1, bookmark.url, bookmark.title, bookmark.tags);
+            bookmarks.push(bookmark);
         }
+    }
+    Ok(bookmarks)
+}
+
+fn list() -> Result<(), Box<dyn Error>> {
+    let bookmarks = load()?;
+    println!("{:>3}  {:<24} {:<36} {}", "#", "TITLE", "URL", "TAGS");
+    for (i, bookmark) in bookmarks.iter().enumerate() {
+        println!("{:>3}  {}", i + 1, bookmark.row());
     }
     Ok(())
 }
