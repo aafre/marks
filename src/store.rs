@@ -38,3 +38,24 @@ impl Store for TextStore {
         Ok(())
     }
 }
+
+pub struct JsonStore {
+    pub path: String,
+}
+
+impl Store for JsonStore {
+    fn load(&self) -> Result<Vec<Bookmark>, MarksError> {
+        if !Path::new(&self.path).exists() {
+            return Ok(Vec::new());
+        }
+        let contents = fs::read_to_string(&self.path)?;
+        let bookmarks = serde_json::from_str(&contents)?;
+        Ok(bookmarks)
+    }
+
+    fn save(&mut self, bookmarks: &Vec<Bookmark>) -> Result<(), MarksError> {
+        let contents = serde_json::to_string_pretty(bookmarks)?;
+        fs::write(&self.path, contents)?;
+        Ok(())
+    }
+}
