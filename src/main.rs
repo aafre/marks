@@ -6,7 +6,20 @@ use std::io::Write;
 const FILE: &str = "marks.txt";
 const USAGE: &str = "usage: marks add <url> | marks list";
 
+struct Bookmark {
+    url: String,
+    title: String,
+    tags: Vec<String>,
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
+    let bookmark = Bookmark {
+        url: String::from("https://doc.rust-lang.org/book/"),
+        title: String::from("The Rust Book"),
+        tags: vec![String::from("rust"), String::from("docs")],
+    };
+    println!("{} -> {}", bookmark.title, bookmark.url);
+
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
