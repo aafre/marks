@@ -3,6 +3,7 @@ mod error;
 mod store;
 
 use clap::{Parser, Subcommand};
+use std::env;
 use std::process;
 
 use bookmark::Bookmark;
@@ -39,12 +40,17 @@ enum Command {
 
 fn main() {
     let cli = Cli::parse();
-    let mut store = JsonStore {
-        path: String::from("marks.json"),
-    };
+    let mut store = JsonStore { path: data_file() };
     if let Err(err) = run(&mut store, cli.command) {
         eprintln!("error: {err}");
         process::exit(1);
+    }
+}
+
+fn data_file() -> String {
+    match env::home_dir() {
+        Some(home) => home.join(".marks.json").display().to_string(),
+        None => String::from("marks.json"),
     }
 }
 
