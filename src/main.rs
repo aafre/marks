@@ -38,16 +38,20 @@ enum Command {
     List,
     /// Find links by title, URL or tag
     Search { query: String },
+    /// Add a tag to a saved link
+    Tag { number: usize, tag: String },
 }
 
 enum MarksError {
     Io(io::Error),
+    NoSuchBookmark(usize),
 }
 
 impl fmt::Display for MarksError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             MarksError::Io(err) => write!(f, "couldn't use {FILE}: {err}"),
+            MarksError::NoSuchBookmark(number) => write!(f, "there's no bookmark #{number}"),
         }
     }
 }
@@ -113,6 +117,7 @@ fn run(command: Command) -> Result<(), MarksError> {
                 println!("{}", bookmark.row());
             }
         }
+        Command::Tag { number, tag } => add_tag(number, tag)?,
     }
     Ok(())
 }
@@ -155,6 +160,21 @@ fn load() -> Result<Vec<Bookmark>, MarksError> {
         }
     }
     Ok(bookmarks)
+}
+
+fn add_tag(number: usize, tag: String) -> Result<(), MarksError> {
+    let mut bookmarks = load()?;
+    let bookmark = match number.checked_sub(1).and_then(|index| bookmarks.get_mut(index)) {
+        Some(bookmark) => bookmark,
+        None => return Err(MarksError::NoSuchBookmark(number)),
+    };
+    if bookmark.tags.iter().any(|existing| *existing == tag) {
+        println!("#{number} is already tagged {tag}");
+        return Ok(());
+    }
+    bookmark.tags.push(tag);
+    println!("Tagged:  {}", bookmark.row());
+    save(&bookmarks)
 }
 
 fn search(bookmarks: &[Bookmark], query: &str) -> Vec<Bookmark> {
