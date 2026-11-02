@@ -7,7 +7,7 @@ use std::process;
 
 use bookmark::Bookmark;
 use error::MarksError;
-use store::{load, save};
+use store::{Store, TextStore};
 
 /// A bookmark manager for the terminal
 #[derive(Parser)]
@@ -39,32 +39,35 @@ enum Command {
 
 fn main() {
     let cli = Cli::parse();
-    if let Err(err) = run(cli.command) {
+    let mut store = TextStore {
+        path: String::from("marks.txt"),
+    };
+    if let Err(err) = run(&mut store, cli.command) {
         eprintln!("error: {err}");
         process::exit(1);
     }
 }
 
-fn run(command: Command) -> Result<(), MarksError> {
+fn run(store: &mut TextStore, command: Command) -> Result<(), MarksError> {
     match command {
         Command::Add { url, title, tags } => {
             let title = title.unwrap_or_default();
-            add(Bookmark { url, title, tags })?
+            add(store, Bookmark { url, title, tags })?
         }
-        Command::List => list()?,
+        Command::List => list(store)?,
         Command::Search { query } => {
-            let bookmarks = load()?;
+            let bookmarks = store.load()?;
             for bookmark in search(&bookmarks, &query) {
                 println!("{}", bookmark.row());
             }
         }
-        Command::Tag { number, tag } => add_tag(number, tag)?,
+        Command::Tag { number, tag } => add_tag(store, number, tag)?,
     }
     Ok(())
 }
 
-fn add(bookmark: Bookmark) -> Result<(), MarksError> {
-    let mut bookmarks = load()?;
+fn add(store: &mut TextStore, bookmark: Bookmark) -> Result<(), MarksError> {
+    let mut bookmarks = store.load()?;
     let mut existing = None;
     for saved in &bookmarks {
         if saved.url == bookmark.url {
@@ -76,11 +79,11 @@ fn add(bookmark: Bookmark) -> Result<(), MarksError> {
     }
     println!("Saved {}", bookmark.url);
     bookmarks.push(bookmark);
-    save(&bookmarks)
+    store.save(&bookmarks)
 }
 
-fn add_tag(number: usize, tag: String) -> Result<(), MarksError> {
-    let mut bookmarks = load()?;
+fn add_tag(store: &mut TextStore, number: usize, tag: String) -> Result<(), MarksError> {
+    let mut bookmarks = store.load()?;
     let bookmark = match number.checked_sub(1).and_then(|index| bookmarks.get_mut(index)) {
         Some(bookmark) => bookmark,
         None => return Err(MarksError::NoSuchBookmark(number)),
@@ -91,15 +94,15 @@ fn add_tag(number: usize, tag: String) -> Result<(), MarksError> {
     }
     bookmark.tags.push(tag);
     println!("Tagged:  {}", bookmark.row());
-    save(&bookmarks)
+    store.save(&bookmarks)
 }
 
 fn search(bookmarks: &[Bookmark], query: &str) -> Vec<Bookmark> {
     bookmarks.iter().filter(|bookmark| bookmark.matches(query)).cloned().collect()
 }
 
-fn list() -> Result<(), MarksError> {
-    let bookmarks = load()?;
+fn list(store: &TextStore) -> Result<(), MarksError> {
+    let bookmarks = store.load()?;
     println!("{:>3}  {:<24} {:<36} {}", "#", "TITLE", "URL", "TAGS");
     for (i, bookmark) in bookmarks.iter().enumerate() {
         println!("{:>3}  {}", i + 1, bookmark.row());
