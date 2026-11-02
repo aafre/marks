@@ -1,7 +1,9 @@
 use std::env;
-use std::error::Error;
+use std::fmt;
 use std::fs;
+use std::io;
 use std::path::Path;
+use std::process;
 
 const FILE: &str = "marks.txt";
 const USAGE: &str = "usage: marks add <url> [--title <title>] [--tags <a,b>] | marks list | marks version";
@@ -21,6 +23,32 @@ enum Command {
     List,
     Version,
     Help,
+}
+
+enum MarksError {
+    Io(io::Error),
+    UnknownCommand(String),
+    MissingUrl,
+    MissingValue(String),
+    UnknownFlag(String),
+}
+
+impl fmt::Display for MarksError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            MarksError::Io(err) => write!(f, "couldn't use {FILE}: {err}"),
+            MarksError::UnknownCommand(name) => write!(f, "unknown command '{name}'"),
+            MarksError::MissingUrl => write!(f, "add needs a URL"),
+            MarksError::MissingValue(flag) => write!(f, "{flag} needs a value"),
+            MarksError::UnknownFlag(flag) => write!(f, "unknown flag '{flag}'"),
+        }
+    }
+}
+
+impl From<io::Error> for MarksError {
+    fn from(err: io::Error) -> MarksError {
+        MarksError::Io(err)
+    }
 }
 
 impl Bookmark {
@@ -50,60 +78,68 @@ impl Bookmark {
     }
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() {
     let args: Vec<String> = env::args().collect();
+    if let Err(err) = run(&args) {
+        eprintln!("error: {err}");
+        eprintln!("{USAGE}");
+        process::exit(1);
+    }
+}
 
-    match parse(&args) {
+fn run(args: &[String]) -> Result<(), MarksError> {
+    match parse(args)? {
         Command::Add { url, title, tags } => add(Bookmark { url, title, tags })?,
         Command::List => list()?,
         Command::Version => println!("marks {}", env!("CARGO_PKG_VERSION")),
         Command::Help => println!("{USAGE}"),
     }
-
     Ok(())
 }
 
-fn parse(args: &[String]) -> Command {
+fn parse(args: &[String]) -> Result<Command, MarksError> {
     let name = match args.get(1) {
         Some(name) => name,
-        None => return Command::Help,
+        None => return Ok(Command::Help),
     };
     match name.as_str() {
         "add" => parse_add(&args[2..]),
-        "list" => Command::List,
-        "version" => Command::Version,
-        _ => Command::Help,
+        "list" => Ok(Command::List),
+        "version" => Ok(Command::Version),
+        "help" => Ok(Command::Help),
+        other => Err(MarksError::UnknownCommand(other.to_string())),
     }
 }
 
-fn parse_add(args: &[String]) -> Command {
+fn parse_add(args: &[String]) -> Result<Command, MarksError> {
     let url = match args.first() {
         Some(url) => url.clone(),
-        None => return Command::Help,
+        None => return Err(MarksError::MissingUrl),
     };
     let mut title = String::new();
     let mut tags = Vec::new();
     let mut i = 1;
     while i < args.len() {
+        let flag = &args[i];
         let value = match args.get(i + 1) {
             Some(value) => value,
-            None => return Command::Help,
+            None => return Err(MarksError::MissingValue(flag.clone())),
         };
-        match args[i].as_str() {
+        match flag.as_str() {
             "--title" => title = value.clone(),
             "--tags" => {
                 for tag in value.split(',') {
                     tags.push(tag.to_string());
                 }
             }
-            _ => return Command::Help,
+            _ => return Err(MarksError::UnknownFlag(flag.clone())),
         }
         i += 2;
     }
-    Command::Add { url, title, tags }
+    Ok(Command::Add { url, title, tags })
 }
 
-fn add(bookmark: Bookmark) -> Result<(), Box<dyn Error>> {
+fn add(bookmark: Bookmark) -> Result<(), MarksError> {
     let mut bookmarks = load()?;
     let mut existing = None;
     for saved in &bookmarks {
@@ -119,7 +155,7 @@ fn add(bookmark: Bookmark) -> Result<(), Box<dyn Error>> {
     save(&bookmarks)
 }
 
-fn save(bookmarks: &Vec<Bookmark>) -> Result<(), Box<dyn Error>> {
+fn save(bookmarks: &Vec<Bookmark>) -> Result<(), MarksError> {
     let mut contents = String::new();
     for bookmark in bookmarks {
         contents.push_str(&bookmark.to_line());
@@ -129,7 +165,7 @@ fn save(bookmarks: &Vec<Bookmark>) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn load() -> Result<Vec<Bookmark>, Box<dyn Error>> {
+fn load() -> Result<Vec<Bookmark>, MarksError> {
     let mut bookmarks = Vec::new();
     if !Path::new(FILE).exists() {
         return Ok(bookmarks);
@@ -143,7 +179,7 @@ fn load() -> Result<Vec<Bookmark>, Box<dyn Error>> {
     Ok(bookmarks)
 }
 
-fn list() -> Result<(), Box<dyn Error>> {
+fn list() -> Result<(), MarksError> {
     let bookmarks = load()?;
     println!("{:>3}  {:<24} {:<36} {}", "#", "TITLE", "URL", "TAGS");
     for (i, bookmark) in bookmarks.iter().enumerate() {
