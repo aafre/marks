@@ -4,7 +4,7 @@ use std::fs;
 use std::path::Path;
 
 const FILE: &str = "marks.txt";
-const USAGE: &str = "usage: marks add <url> [--title <title>] [--tags <a,b>] | marks list";
+const USAGE: &str = "usage: marks add <url> [--title <title>] [--tags <a,b>] | marks list | marks version";
 
 struct Bookmark {
     url: String,
@@ -19,6 +19,7 @@ enum Command {
         tags: Vec<String>,
     },
     List,
+    Version,
     Help,
 }
 
@@ -55,6 +56,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     match parse(&args) {
         Command::Add { url, title, tags } => add(Bookmark { url, title, tags })?,
         Command::List => list()?,
+        Command::Version => println!("marks {}", env!("CARGO_PKG_VERSION")),
         Command::Help => println!("{USAGE}"),
     }
 
@@ -69,6 +71,7 @@ fn parse(args: &[String]) -> Command {
     match name.as_str() {
         "add" => parse_add(&args[2..]),
         "list" => Command::List,
+        "version" => Command::Version,
         _ => Command::Help,
     }
 }
