@@ -4,7 +4,7 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 
 const FILE: &str = "marks.txt";
-const USAGE: &str = "usage: marks add <url> | marks list";
+const USAGE: &str = "usage: marks add <url> [--title <title>] [--tags <a,b>] | marks list";
 
 struct Bookmark {
     url: String,
@@ -28,6 +28,10 @@ impl Bookmark {
         }
         Some(Bookmark { url, title, tags })
     }
+
+    fn to_line(&self) -> String {
+        format!("{}\t{}\t{}", self.url, self.title, self.tags.join(","))
+    }
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -41,8 +45,27 @@ fn main() -> Result<(), Box<dyn Error>> {
     match args[1].as_str() {
         "add" => {
             let url = args[2].clone();
-            add(&url)?;
-            println!("Saved {url}");
+            let mut title = String::new();
+            let mut tags = Vec::new();
+            let mut i = 3;
+            while i < args.len() {
+                match args[i].as_str() {
+                    "--title" => title = args[i + 1].clone(),
+                    "--tags" => {
+                        for tag in args[i + 1].split(',') {
+                            tags.push(tag.to_string());
+                        }
+                    }
+                    _ => {
+                        println!("{USAGE}");
+                        return Ok(());
+                    }
+                }
+                i += 2;
+            }
+            let bookmark = Bookmark { url, title, tags };
+            add(&bookmark)?;
+            println!("Saved {}", bookmark.url);
         }
         "list" => list()?,
         _ => println!("{USAGE}"),
@@ -51,9 +74,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn add(url: &str) -> Result<(), Box<dyn Error>> {
+fn add(bookmark: &Bookmark) -> Result<(), Box<dyn Error>> {
     let mut file = OpenOptions::new().append(true).create(true).open(FILE)?;
-    writeln!(file, "{url}")?;
+    writeln!(file, "{}", bookmark.to_line())?;
     Ok(())
 }
 
