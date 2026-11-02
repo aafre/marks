@@ -12,14 +12,25 @@ struct Bookmark {
     tags: Vec<String>,
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let bookmark = Bookmark {
-        url: String::from("https://doc.rust-lang.org/book/"),
-        title: String::from("The Rust Book"),
-        tags: vec![String::from("rust"), String::from("docs")],
-    };
-    println!("{} -> {}", bookmark.title, bookmark.url);
+impl Bookmark {
+    fn from_line(line: &str) -> Option<Bookmark> {
+        if line.trim().is_empty() {
+            return None;
+        }
+        let mut fields = line.split('\t');
+        let url = fields.next().unwrap_or("").to_string();
+        let title = fields.next().unwrap_or("").to_string();
+        let mut tags = Vec::new();
+        for tag in fields.next().unwrap_or("").split(',') {
+            if !tag.is_empty() {
+                tags.push(tag.to_string());
+            }
+        }
+        Some(Bookmark { url, title, tags })
+    }
+}
 
+fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
@@ -49,7 +60,9 @@ fn add(url: &str) -> Result<(), Box<dyn Error>> {
 fn list() -> Result<(), Box<dyn Error>> {
     let contents = fs::read_to_string(FILE)?;
     for (i, line) in contents.lines().enumerate() {
-        println!("{}. {line}", i + 1);
+        if let Some(bookmark) = Bookmark::from_line(line) {
+            println!("{}. {} {} {:?}", i + 1, bookmark.url, bookmark.title, bookmark.tags);
+        }
     }
     Ok(())
 }
