@@ -40,3 +40,28 @@ impl Bookmark {
         format!("{:<24} {:<36} {}", title, self.url, self.tags.join(", "))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_line_reads_all_three_fields() {
+        let bookmark = Bookmark::from_line("https://serde.rs\tserde\tcrates,json").unwrap();
+        assert_eq!(bookmark.url, "https://serde.rs");
+        assert_eq!(bookmark.title, "serde");
+        assert_eq!(bookmark.tags, vec!["crates", "json"]);
+    }
+
+    #[test]
+    fn from_line_reads_an_old_url_only_line() {
+        let bookmark = Bookmark::from_line("https://doc.rust-lang.org/book/").unwrap();
+        assert_eq!(bookmark.title, "");
+        assert!(bookmark.tags.is_empty());
+    }
+
+    #[test]
+    fn from_line_skips_blank_lines() {
+        assert!(Bookmark::from_line("   ").is_none());
+    }
+}
