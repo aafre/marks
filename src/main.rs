@@ -1,7 +1,6 @@
 use std::env;
 use std::error::Error;
-use std::fs::{self, OpenOptions};
-use std::io::Write;
+use std::fs;
 use std::path::Path;
 
 const FILE: &str = "marks.txt";
@@ -69,9 +68,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
                 i += 2;
             }
-            let bookmark = Bookmark { url, title, tags };
-            add(&bookmark)?;
-            println!("Saved {}", bookmark.url);
+            add(Bookmark { url, title, tags })?;
         }
         "list" => list()?,
         _ => println!("{USAGE}"),
@@ -80,9 +77,29 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn add(bookmark: &Bookmark) -> Result<(), Box<dyn Error>> {
-    let mut file = OpenOptions::new().append(true).create(true).open(FILE)?;
-    writeln!(file, "{}", bookmark.to_line())?;
+fn add(bookmark: Bookmark) -> Result<(), Box<dyn Error>> {
+    let mut bookmarks = load()?;
+    let mut existing = None;
+    for saved in &bookmarks {
+        if saved.url == bookmark.url {
+            existing = Some(saved);
+        }
+    }
+    if let Some(saved) = existing {
+        println!("Already saved:  {}", saved.row());
+    }
+    println!("Saved {}", bookmark.url);
+    bookmarks.push(bookmark);
+    save(&bookmarks)
+}
+
+fn save(bookmarks: &Vec<Bookmark>) -> Result<(), Box<dyn Error>> {
+    let mut contents = String::new();
+    for bookmark in bookmarks {
+        contents.push_str(&bookmark.to_line());
+        contents.push('\n');
+    }
+    fs::write(FILE, contents)?;
     Ok(())
 }
 
