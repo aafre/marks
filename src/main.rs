@@ -7,7 +7,7 @@ use std::process;
 
 use bookmark::Bookmark;
 use error::MarksError;
-use store::{Store, TextStore};
+use store::{JsonStore, Store, TextStore};
 
 /// A bookmark manager for the terminal
 #[derive(Parser)]
@@ -39,8 +39,8 @@ enum Command {
 
 fn main() {
     let cli = Cli::parse();
-    let mut store = TextStore {
-        path: String::from("marks.txt"),
+    let mut store = JsonStore {
+        path: String::from("marks.json"),
     };
     if let Err(err) = run(&mut store, cli.command) {
         eprintln!("error: {err}");
@@ -48,7 +48,8 @@ fn main() {
     }
 }
 
-fn run(store: &mut TextStore, command: Command) -> Result<(), MarksError> {
+fn run<S: Store>(store: &mut S, command: Command) -> Result<(), MarksError> {
+    import_text_file(store)?;
     match command {
         Command::Add { url, title, tags } => {
             let title = title.unwrap_or_default();
@@ -66,7 +67,7 @@ fn run(store: &mut TextStore, command: Command) -> Result<(), MarksError> {
     Ok(())
 }
 
-fn add(store: &mut TextStore, bookmark: Bookmark) -> Result<(), MarksError> {
+fn add<S: Store>(store: &mut S, bookmark: Bookmark) -> Result<(), MarksError> {
     let mut bookmarks = store.load()?;
     let mut existing = None;
     for saved in &bookmarks {
@@ -82,7 +83,7 @@ fn add(store: &mut TextStore, bookmark: Bookmark) -> Result<(), MarksError> {
     store.save(&bookmarks)
 }
 
-fn add_tag(store: &mut TextStore, number: usize, tag: String) -> Result<(), MarksError> {
+fn add_tag<S: Store>(store: &mut S, number: usize, tag: String) -> Result<(), MarksError> {
     let mut bookmarks = store.load()?;
     let bookmark = match number.checked_sub(1).and_then(|index| bookmarks.get_mut(index)) {
         Some(bookmark) => bookmark,
@@ -101,11 +102,24 @@ fn search(bookmarks: &[Bookmark], query: &str) -> Vec<Bookmark> {
     bookmarks.iter().filter(|bookmark| bookmark.matches(query)).cloned().collect()
 }
 
-fn list(store: &TextStore) -> Result<(), MarksError> {
+fn list<S: Store>(store: &S) -> Result<(), MarksError> {
     let bookmarks = store.load()?;
     println!("{:>3}  {:<24} {:<36} {}", "#", "TITLE", "URL", "TAGS");
     for (i, bookmark) in bookmarks.iter().enumerate() {
         println!("{:>3}  {}", i + 1, bookmark.row());
     }
+    Ok(())
+}
+
+fn import_text_file<S: Store>(store: &mut S) -> Result<(), MarksError> {
+    let text_store = TextStore {
+        path: String::from("marks.txt"),
+    };
+    let old = text_store.load()?;
+    if old.is_empty() || !store.load()?.is_empty() {
+        return Ok(());
+    }
+    store.save(&old)?;
+    println!("Imported {} bookmarks from marks.txt", old.len());
     Ok(())
 }
