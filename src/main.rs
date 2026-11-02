@@ -52,39 +52,52 @@ impl Bookmark {
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
 
-    if args.len() < 2 {
-        println!("{USAGE}");
-        return Ok(());
-    }
-
-    match args[1].as_str() {
-        "add" => {
-            let url = args[2].clone();
-            let mut title = String::new();
-            let mut tags = Vec::new();
-            let mut i = 3;
-            while i < args.len() {
-                match args[i].as_str() {
-                    "--title" => title = args[i + 1].clone(),
-                    "--tags" => {
-                        for tag in args[i + 1].split(',') {
-                            tags.push(tag.to_string());
-                        }
-                    }
-                    _ => {
-                        println!("{USAGE}");
-                        return Ok(());
-                    }
-                }
-                i += 2;
-            }
-            add(Bookmark { url, title, tags })?;
-        }
-        "list" => list()?,
-        _ => println!("{USAGE}"),
+    match parse(&args) {
+        Command::Add { url, title, tags } => add(Bookmark { url, title, tags })?,
+        Command::List => list()?,
+        Command::Help => println!("{USAGE}"),
     }
 
     Ok(())
+}
+
+fn parse(args: &[String]) -> Command {
+    let name = match args.get(1) {
+        Some(name) => name,
+        None => return Command::Help,
+    };
+    match name.as_str() {
+        "add" => parse_add(&args[2..]),
+        "list" => Command::List,
+        _ => Command::Help,
+    }
+}
+
+fn parse_add(args: &[String]) -> Command {
+    let url = match args.first() {
+        Some(url) => url.clone(),
+        None => return Command::Help,
+    };
+    let mut title = String::new();
+    let mut tags = Vec::new();
+    let mut i = 1;
+    while i < args.len() {
+        let value = match args.get(i + 1) {
+            Some(value) => value,
+            None => return Command::Help,
+        };
+        match args[i].as_str() {
+            "--title" => title = value.clone(),
+            "--tags" => {
+                for tag in value.split(',') {
+                    tags.push(tag.to_string());
+                }
+            }
+            _ => return Command::Help,
+        }
+        i += 2;
+    }
+    Command::Add { url, title, tags }
 }
 
 fn add(bookmark: Bookmark) -> Result<(), Box<dyn Error>> {
