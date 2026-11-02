@@ -89,7 +89,7 @@ fn add_tag<S: Store>(store: &mut S, number: usize, tag: String) -> Result<(), Ma
         Some(bookmark) => bookmark,
         None => return Err(MarksError::NoSuchBookmark(number)),
     };
-    if bookmark.tags.iter().any(|existing| *existing == tag) {
+    if bookmark.tags.contains(&tag) {
         println!("#{number} is already tagged {tag}");
         return Ok(());
     }
@@ -104,7 +104,7 @@ fn search<'a>(bookmarks: &'a [Bookmark], query: &str) -> Vec<&'a Bookmark> {
 
 fn list<S: Store>(store: &S) -> Result<(), MarksError> {
     let bookmarks = store.load()?;
-    println!("{:>3}  {:<24} {:<36} {}", "#", "TITLE", "URL", "TAGS");
+    println!("{:>3}  {:<24} {:<36} TAGS", "#", "TITLE", "URL");
     for (i, bookmark) in bookmarks.iter().enumerate() {
         println!("{:>3}  {}", i + 1, bookmark.row());
     }
@@ -137,8 +137,8 @@ mod tests {
             Ok(self.bookmarks.clone())
         }
 
-        fn save(&mut self, bookmarks: &Vec<Bookmark>) -> Result<(), MarksError> {
-            self.bookmarks = bookmarks.clone();
+        fn save(&mut self, bookmarks: &[Bookmark]) -> Result<(), MarksError> {
+            self.bookmarks = bookmarks.to_vec();
             Ok(())
         }
     }

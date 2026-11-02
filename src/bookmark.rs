@@ -32,7 +32,7 @@ impl Bookmark {
         let query = query.to_lowercase();
         self.title.to_lowercase().contains(&query)
             || self.url.contains(&query)
-            || self.tags.iter().any(|tag| *tag == query)
+            || self.tags.contains(&query)
     }
 
     pub fn row(&self) -> String {

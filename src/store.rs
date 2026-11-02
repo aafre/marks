@@ -6,7 +6,7 @@ use crate::error::MarksError;
 
 pub trait Store {
     fn load(&self) -> Result<Vec<Bookmark>, MarksError>;
-    fn save(&mut self, bookmarks: &Vec<Bookmark>) -> Result<(), MarksError>;
+    fn save(&mut self, bookmarks: &[Bookmark]) -> Result<(), MarksError>;
 }
 
 pub struct TextStore {
@@ -28,7 +28,7 @@ impl Store for TextStore {
         Ok(bookmarks)
     }
 
-    fn save(&mut self, bookmarks: &Vec<Bookmark>) -> Result<(), MarksError> {
+    fn save(&mut self, bookmarks: &[Bookmark]) -> Result<(), MarksError> {
         let mut contents = String::new();
         for bookmark in bookmarks {
             contents.push_str(&bookmark.to_line());
@@ -53,7 +53,7 @@ impl Store for JsonStore {
         Ok(bookmarks)
     }
 
-    fn save(&mut self, bookmarks: &Vec<Bookmark>) -> Result<(), MarksError> {
+    fn save(&mut self, bookmarks: &[Bookmark]) -> Result<(), MarksError> {
         let contents = serde_json::to_string_pretty(bookmarks)?;
         fs::write(&self.path, contents)?;
         Ok(())
