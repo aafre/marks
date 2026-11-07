@@ -1,0 +1,5 @@
+*The Rust Book,https://doc.rust-lang.org/book,rust docs
+Rustlings,https://github.com/rust-lang/rustlings,rust practice
+*,https://www.youtube.com/@RustVideos,rust video
+this line has no commas
+*Ferris says hi,https://rustacean.net,fun

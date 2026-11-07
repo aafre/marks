@@ -12,4 +12,8 @@ cargo run -- list
 
 The toolchain is pinned in `rust-toolchain.toml` (Rust 1.99.1, edition 2024), so the compiler messages you see match the video.
 
+## Rust Programming Crash Course
+
+The one-video crash course builds a smaller, separate program. Its code is in [`crash-course/`](crash-course/).
+
 This is an independent tutorial project. It isn't affiliated with or endorsed by the Rust Project or the Rust Foundation.
